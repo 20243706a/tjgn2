@@ -1,0 +1,26 @@
+:root{--bg:#f5f6f8;--card:#fff;--tx:#1b1f27;--mu:#6b7280;--ac:#3b6ef5;--ok:#17a34a;--no:#dc2626;--bd:#e3e6ec}
+@media (prefers-color-scheme:dark){:root{--bg:#14161b;--card:#1e2128;--tx:#eceef3;--mu:#9aa1ae;--ac:#6b93ff;--ok:#34c76a;--no:#f06262;--bd:#2d313b;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:1000px;margin:0 auto;padding:14px}
+h1{font-size:20px;margin:4px 0 12px}h3{margin:0 0 8px;font-size:15px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:12px}
+button,select,input{font:inherit;color:var(--tx)}
+button{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:10px 14px;min-height:44px;cursor:pointer}
+button.g{background:transparent;color:var(--tx);border:1px solid var(--bd)}button.r{background:var(--no)}button.o{background:var(--ok)}
+button.on{background:var(--ok)}button:disabled{opacity:.35;cursor:default}
+input,select{background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;min-height:44px;width:100%}
+input[type=checkbox]{width:auto;min-height:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}.row>*{flex:1}.row>.n{flex:0 0 auto}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}@media(min-width:800px){.grid{grid-template-columns:1.2fr 1fr}}
+.mu{color:var(--mu);font-size:14px}.code{font-size:40px;font-weight:700;letter-spacing:8px;color:var(--ac);text-align:center}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--bd);color:var(--mu)}.tag.on{color:var(--ok);border-color:var(--ok)}
+.banner{background:var(--no);color:#fff;text-align:center;padding:10px;border-radius:10px;margin-bottom:12px}
+.stg{position:relative;aspect-ratio:16/9;background:var(--bg);border-radius:12px;overflow:hidden}
+.stg .sl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;font-weight:700;color:var(--mu);opacity:.5}
+.stg canvas{position:absolute;inset:0;width:100%;height:100%}
+.dot{position:absolute;width:16px;height:16px;margin:-8px;border-radius:50%;background:#ef4444;box-shadow:0 0 10px #ef4444;pointer-events:none}
+.dot span{position:absolute;top:16px;left:0;font-size:11px;white-space:nowrap}
+.scroll{max-height:170px;overflow:auto;font-size:14px}.scroll.sm{font-size:13px;color:var(--mu)}
+.pm{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.pm button{font-size:14px;padding:6px 8px}
