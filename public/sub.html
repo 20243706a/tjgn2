@@ -1,0 +1,51 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>보조 · 권한 제어</title><link rel="stylesheet" href="/style.css"></head>
+<body><main>
+<h1>보조 기기</h1>
+<div id="join" class="card"><div class="row"><input id="nm" placeholder="기기 이름" maxlength="20"></div><div class="row"><input id="cd" placeholder="4자리 코드" inputmode="numeric" maxlength="4"></div><div id="err" class="mu"></div><button onclick="join()" style="width:100%">접속 요청</button></div>
+<div id="app" style="display:none">
+ <div id="bn"></div><div class="card" id="wait" style="display:none">메인 기기의 승인을 기다리는 중…</div>
+ <div id="main">
+  <div class="card"><div id="stwrap"><div id="stage"></div></div><div id="noview" class="mu" style="display:none;text-align:center;padding:30px">🙈 화면 보기 권한이 없어요</div>
+   <div class="row"><button id="b1" onclick="ctl('prev')">◀</button><button id="b2" onclick="ctl('reset')">처음</button><button id="b3" onclick="ctl('next')">▶</button></div>
+   <div class="row"><select id="mode" class="n"><option value="draw">그리기</option><option value="ptr">레이저 포인터</option></select><input type="color" id="col" value="#ef4444" class="n" style="width:56px;padding:2px"></div></div>
+  <div class="card"><h3>채팅</h3><div class="scroll" id="chat"></div><div class="row"><input id="ci" placeholder="메시지"><button id="cb" class="n" onclick="sendChat()">전송</button></div></div>
+  <div class="card"><h3>파일 보내기</h3><input type="file" id="fi"> <div class="mu">5MB 이하</div></div>
+  <div class="card"><h3>내 권한</h3><div id="pm" class="pm"></div>
+   <div class="row"><select id="ask"></select><button class="g n" onclick="io_.emit('a:ask',$('#ask').value)">권한 요청</button></div></div>
+ </div></div></main>
+<script src="/socket.io/socket.io.js"></script><script src="/common.js"></script>
+<script>
+const io_=io(); let S=null,off=0,st=null,joined=false;
+const id=localStorage.subId||(localStorage.subId=Math.random().toString(36).slice(2,12));
+const m=location.pathname.match(/^\/sub\/(\d{4})/); if(m)$('#cd').value=m[1]; $('#nm').value=localStorage.subName||'';
+const has=k=>S&&S.me&&S.me.status==='ok'&&!S.locked&&!S.paused&&S.me.perms[k]&&!(S.me.perms[k].until&&S.me.perms[k].until+off<Date.now());
+function join(){const name=$('#nm').value.trim()||'보조 기기',code=$('#cd').value.trim();localStorage.subName=name;localStorage.subCode=code;
+  io_.emit('sub:join',{code,name,id},r=>{if(r.err){$('#err').textContent=r.err;return}joined=true;$('#join').style.display='none';$('#app').style.display='block';
+   if(!st)st=mountStage($('#stage'),{mode:()=>$('#mode').value,color:()=>$('#col').value,can:has,stroke:s=>io_.emit('a:stroke',s),ptr:p=>io_.emit('a:ptr',p)})})}
+io_.on('connect',()=>{if(joined)io_.emit('sub:join',{code:localStorage.subCode,name:localStorage.subName,id},()=>{})});
+io_.on('stroke',s=>st&&st.add(s)); io_.on('ptr',p=>st&&st.ptr(p));
+io_.on('closed',()=>{alert('메인 기기가 방을 종료했어요.');location.href='/sub'});
+io_.on('denied',k=>{$('#bn').innerHTML=`<div class="banner">${PL[k]} 권한이 없어요</div>`;setTimeout(()=>render(),1500)});
+io_.on('state',s=>{S=s;off=Date.now()-s.t;render()});
+const ctl=a=>io_.emit('a:ctl',a);
+function sendChat(){const v=$('#ci').value.trim();if(v){io_.emit('a:chat',v);$('#ci').value=''}}
+$('#ci').onkeydown=e=>{if(e.key==='Enter')sendChat()};
+$('#fi').onchange=e=>{const f=e.target.files[0];if(!f)return;if(f.size>5e6){alert('5MB 이하만 보낼 수 있어요');e.target.value='';return}
+  const r=new FileReader();r.onload=()=>{io_.emit('a:file',{name:f.name,size:f.size,data:r.result});e.target.value=''};r.readAsDataURL(f)};
+function render(){
+  const me=S.me; if(!me)return;
+  if(me.status==='pending'){$('#wait').style.display='block';$('#main').style.display='none';return}
+  if(me.status!=='ok'){$('#wait').style.display='block';$('#wait').innerHTML='접속이 종료되었어요(거절·퇴장·차단). <button onclick="location.reload()">다시 접속</button>';$('#main').style.display='none';return}
+  $('#wait').style.display='none';$('#main').style.display='block';
+  $('#bn').innerHTML=(S.locked?'<div class="banner">🔒 메인 기기가 긴급 잠금했어요</div>':'')+(S.paused?'<div class="banner">⏸ 일시정지 중</div>':'');
+  const v=has('view');$('#stwrap').style.display=v?'block':'none';$('#noview').style.display=v?'none':'block';
+  if(v&&S.slide!==undefined)st.set(S);
+  ['b1','b2','b3'].forEach(b=>$('#'+b).disabled=!has('control'));
+  $('#cb').disabled=!has('chat');$('#ci').disabled=!has('chat');$('#fi').disabled=!has('file');
+  $('#chat').innerHTML=v&&S.chat?S.chat.map(x=>`<div><b>${esc(x.n)}</b> ${esc(x.t)}</div>`).join(''):'<span class="mu">보기 권한이 필요해요</span>';$('#chat').scrollTop=1e9;
+  $('#pm').innerHTML=Object.keys(PL).map(k=>{const p=me.perms[k];return `<button class="${p?'on':'g'}" disabled>${PL[k]} ${p?'ON':'OFF'}${p&&p.once?' (1회)':''}${p&&p.until?` <span class="cd" data-u="${p.until}"></span>`:''}</button>`}).join('');
+  $('#ask').innerHTML=Object.keys(PL).filter(k=>!me.perms[k]).map(k=>`<option value="${k}">${PL[k]}</option>`).join('')||'<option>모든 권한 보유</option>';
+  if(me.ask)$('#ask').insertAdjacentHTML('beforebegin',`<span class="mu n">요청 중: ${PL[me.ask]}</span>`);
+}
+setInterval(()=>{document.querySelectorAll('.cd').forEach(e=>{e.textContent=fmt(Math.max(0,Math.round((+e.dataset.u+off-Date.now())/1000)))});if(S&&S.me&&S.me.status==='ok'&&S.me.perms&&Object.values(S.me.perms).some(p=>p.until&&p.until+off<Date.now()))render()},500);
+</script></body></html>
