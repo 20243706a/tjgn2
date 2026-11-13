@@ -1,0 +1,64 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>메인 · 권한 제어</title><link rel="stylesheet" href="/style.css"></head>
+<body><main>
+<h1>메인 기기</h1><div id="bn"></div>
+<div class="card"><div class="mu" style="text-align:center">보조 기기 접속 주소</div><div class="code" id="code">----</div><div class="mu" style="text-align:center" id="url"></div>
+<div class="row"><button id="blk" class="r"></button><button id="bps" class="g"></button><button id="bau" class="g"></button><button class="g" onclick="H({type:'newcode'})">코드 재발급</button><button class="g" onclick="if(confirm('방을 종료할까요?'))H({type:'close'})">방 종료</button></div></div>
+<div class="grid"><div>
+ <div class="card"><div id="stage"></div>
+  <div class="row"><button class="g" onclick="slide(-1)">◀</button><button class="g" onclick="H({type:'slide',n:1})">처음</button><button class="g" onclick="slide(1)">▶</button>
+  <select id="mode" class="n"><option value="draw">그리기</option><option value="ptr">포인터(보기만)</option></select><input type="color" id="col" value="#3b6ef5" class="n" style="width:56px;padding:2px"><button class="g" onclick="H({type:'clear'})">지우기</button></div></div>
+ <div class="card"><h3>채팅</h3><div class="scroll" id="chat"></div><div class="row"><input id="ci" placeholder="메시지"><button class="n" onclick="sendChat()">전송</button></div><button class="g" onclick="H({type:'clearchat'})">채팅 지우기</button></div>
+ <div class="card"><h3>받은 파일</h3><div id="files" class="scroll"></div></div>
+</div><div>
+ <div id="devs"></div>
+ <div class="card"><h3>조작 기록</h3><div class="scroll sm" id="log"></div></div>
+</div></div></main>
+<script src="/socket.io/socket.io.js"></script><script src="/common.js"></script>
+<script>
+const io_=io(); let S=null,off=0,opts={};
+const H=o=>io_.emit('h',o); const slide=d=>H({type:'slide',n:(S?S.slide:1)+d});
+const st=mountStage($('#stage'),{mode:()=>$('#mode').value,color:()=>$('#col').value,can:()=>true,
+  stroke:s=>io_.emit('h:stroke',s),ptr:()=>{}});
+function start(){
+  const c=localStorage.hostCode,k=localStorage.hostKey, done=r=>{localStorage.hostCode=r.code;localStorage.hostKey=r.key};
+  if(c&&k)io_.emit('host:resume',{code:c,key:k},r=>r.err?create():done(r)); else create();
+  function create(){io_.emit('host:create',0,done)}
+}
+io_.on('connect',start);
+io_.on('newcode',r=>{localStorage.hostCode=r.code;localStorage.hostKey=r.key});
+io_.on('stroke',s=>st.add(s)); io_.on('ptr',p=>st.ptr(p));
+io_.on('state',s=>{S=s;off=Date.now()-s.t;localStorage.hostCode=s.code;render()});
+function sendChat(){const v=$('#ci').value.trim();if(v){io_.emit('h:chat',v);$('#ci').value=''}}
+$('#ci').onkeydown=e=>{if(e.key==='Enter')sendChat()};
+function dl(fid){io_.emit('h:file',fid,f=>{if(!f)return;const a=document.createElement('a');a.href=f.data;a.download=f.name;a.click()})}
+const O=id=>opts[id]||(opts[id]={min:0,once:false});
+function perm(id,k,on){const o=O(id);H({type:'perm',id,k,on,min:o.min,once:o.once})}
+function render(){
+  $('#code').textContent=S.code;$('#url').textContent=location.origin+'/sub/'+S.code;
+  $('#bn').innerHTML=(S.locked?'<div class="banner">🔒 긴급 잠금 중</div>':'')+(S.paused?'<div class="banner">⏸ 전체 일시정지 중</div>':'');
+  $('#blk').textContent=S.locked?'잠금 해제':'긴급 잠금';$('#blk').onclick=()=>H({type:'lock'});
+  $('#bps').textContent=S.paused?'일시정지 해제':'전체 일시정지';$('#bps').onclick=()=>H({type:'pause'});
+  $('#bau').textContent='자동 승인 '+(S.auto?'ON':'OFF');$('#bau').onclick=()=>H({type:'auto'});
+  st.set(S);
+  $('#chat').innerHTML=S.chat.map(m=>`<div><b>${esc(m.n)}</b> ${esc(m.t)}</div>`).join('')||'<span class="mu">-</span>';$('#chat').scrollTop=1e9;
+  $('#files').innerHTML=S.files.map(f=>`<div class="row"><span>${esc(f.name)} <span class="mu">(${esc(f.from)}, ${Math.round(f.size/1024)}KB)</span></span><button class="g n" onclick="dl('${f.id}')">받기</button><button class="g n" onclick="H({type:'delfile',fid:'${f.id}'})">삭제</button></div>`).join('')||'<span class="mu">-</span>';
+  $('#log').innerHTML=S.log.map(esc).join('<br>')||'-';
+  $('#devs').innerHTML=S.devs.map(d=>dev(d)).join('')||'<div class="card mu">접속한 보조 기기가 없어요.</div>';
+}
+function dev(d){
+  const n=esc(d.name),i=d.id,o=O(i),tag=`<span class="tag ${d.online?'on':''}">${d.online?'연결됨':'오프라인'}</span>`;
+  if(d.status==='pending')return `<div class="card"><b>${n}</b> <span class="tag">입장 대기</span><div class="row"><select onchange="O('${i}').role=this.value"><option value="viewer">관람자</option><option value="operator" ${o.role==='operator'?'selected':''}>조작자</option><option value="admin" ${o.role==='admin'?'selected':''}>관리자(전부)</option></select><button class="o" onclick="H({type:'approve',id:'${i}',role:O('${i}').role||'viewer'})">승인</button><button class="g" onclick="H({type:'deny',id:'${i}'})">거절</button></div></div>`;
+  if(d.status==='banned')return `<div class="card"><b>${n}</b> <span class="tag">차단됨</span> <button class="g" onclick="H({type:'unban',id:'${i}'})">차단 해제</button></div>`;
+  if(d.status!=='ok')return `<div class="card mu">${n} — 퇴장/거절됨 <button class="g" onclick="H({type:'ban',id:'${i}'})">차단</button></div>`;
+  const btns=Object.keys(PL).map(k=>{const p=d.perms[k];const l=p&&p.until?` <span class="cd" data-u="${p.until}"></span>`:'';
+   return `<button class="${p?'on':'g'}" onclick="perm('${i}','${k}',${!p})">${PL[k]} ${p?'ON':'OFF'}${p&&p.once?' (1회)':''}${l}</button>`}).join('');
+  return `<div class="card"><div class="row"><b>${n}</b>${tag}</div>
+  ${d.ask?`<div class="row"><span>🙋 ${PL[d.ask]} 요청</span><button class="o n" onclick="perm('${i}','${d.ask}',true)">허용</button><button class="g n" onclick="H({type:'denyask',id:'${i}'})">거절</button></div>`:''}
+  <div class="pm">${btns}</div>
+  <div class="row"><select onchange="O('${i}').min=+this.value">${[[0,'시간 제한 없음'],[1,'1분'],[5,'5분'],[10,'10분'],[30,'30분']].map(([v,t])=>`<option value="${v}" ${o.min===v?'selected':''}>${t}</option>`).join('')}</select>
+  <label class="n"><input type="checkbox" ${o.once?'checked':''} onchange="O('${i}').once=this.checked"> 1회용</label></div>
+  <div class="row"><select onchange="if(this.value)H({type:'preset',id:'${i}',role:this.value});this.value=''"><option value="">역할 프리셋…</option><option value="viewer">관람자</option><option value="operator">조작자</option><option value="admin">관리자(전부)</option></select>
+  <button class="g n" onclick="const v=prompt('새 이름','${n}');if(v)H({type:'rename',id:'${i}',name:v})">이름</button><button class="g n" onclick="H({type:'kick',id:'${i}'})">퇴장</button><button class="r n" onclick="if(confirm('차단할까요?'))H({type:'ban',id:'${i}'})">차단</button></div></div>`;
+}
+setInterval(()=>document.querySelectorAll('.cd').forEach(e=>{e.textContent=fmt(Math.max(0,Math.round((+e.dataset.u+off-Date.now())/1000)))}),500);
+</script></body></html>
