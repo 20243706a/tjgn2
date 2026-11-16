@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>태블릿 라이브</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#1b1d21;--mu:#6b7280;--bd:#e2e4e9;--ac:#3b6cf6;--ok:#16a34a;--bad:#dc2626;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1e2127;--tx:#eceef2;--mu:#9aa1ad;--bd:#2f343c;--ac:#6b93ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,"Noto Sans KR","Malgun Gothic",sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 12px}h2{font-size:15px;margin:0 0 10px;color:var(--mu);font-weight:600}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+button{font:inherit;border:0;border-radius:10px;padding:12px 16px;background:var(--ac);color:#fff;cursor:pointer}
+button.ghost{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+input,textarea{font:inherit;width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx)}
+textarea{min-height:110px;resize:vertical}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:0}
+.sw{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd)}.sw:last-child{border:0}
+.tg{width:54px;height:30px;border-radius:15px;background:var(--bd);position:relative;padding:0}
+.tg::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.15s}
+.tg.on{background:var(--ok)}.tg.on::after{left:27px}
+.live{padding:10px 12px;border-radius:10px;border:1px dashed var(--bd);white-space:pre-wrap;word-break:break-word;min-height:44px;margin-top:6px}
+.mu{color:var(--mu);font-size:13px}
+video{width:100%;max-height:60vh;background:#000;border-radius:10px}
+.chat{height:220px;overflow-y:auto;border:1px solid var(--bd);border-radius:10px;padding:8px;margin-bottom:8px;background:var(--bg)}
+.m{margin:4px 0;display:flex}.m span{padding:6px 10px;border-radius:12px;background:var(--card);border:1px solid var(--bd);max-width:80%;word-break:break-word}
+.m.me{justify-content:flex-end}.m.me span{background:var(--ac);color:#fff;border-color:var(--ac)}
+.pop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:24px}
+.pop div{background:var(--card);border-radius:18px;padding:28px;max-width:520px;width:100%;text-align:center;font-size:22px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--bad);margin-right:6px}.dot.ok{background:var(--ok)}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title"></h1>
+  <p class="mu"><span id="dot" class="dot"></span><span id="st">연결 중…</span></p>
+
+  <!-- 관리자 -->
+  <div id="admin" class="hide">
+    <div class="card"><h2>기능 켜기/끄기 (켠 기능만 태블릿에 표시)</h2>
+      <div class="sw"><span>📝 질문 창</span><button class="tg" data-f="question"></button></div>
+      <div class="sw"><span>📷 내 카메라 보여주기</span><button class="tg" data-f="camera"></button></div>
+      <div class="sw"><span>🤳 태블릿 카메라 받기</span><button class="tg" data-f="tcam"></button></div>
+      <div class="sw"><span>💬 채팅</span><button class="tg" data-f="chat"></button></div>
+    </div>
+    <div class="card" id="aQ"><h2>질문 창 · 태블릿 입력 실시간 보기</h2>
+      <div class="row"><input id="qPrompt" class="grow" value="오늘 기분이 어떤가요?"><button id="qSend" class="ghost">질문 변경</button></div>
+      <div id="qLive"><p class="mu">(입력 대기 중)</p></div></div>
+    <div class="card" id="aC"><h2>내 카메라 (태블릿에 전송 중)</h2><video id="aVid" autoplay playsinline muted></video><p id="aCs" class="mu"></p></div>
+    <div class="card" id="aT"><h2>태블릿 카메라</h2><div id="tGrid"></div><p id="aTs" class="mu">태블릿에서 카메라를 켜면 여기에 표시됩니다.</p></div>
+    <div class="card" id="aH"><h2>채팅</h2><div class="chat" id="aLog"></div><div class="row"><input id="aIn" class="grow" placeholder="메시지"><button id="aSnd">전송</button></div></div>
+    <div class="card"><h2>데이터 삭제</h2><div class="row"><button class="ghost" id="dA">입력 내용 삭제</button><button class="ghost" id="dC">채팅 삭제</button><button id="dAll" style="background:var(--bad)">전체 삭제</button></div></div>
+    <div class="card"><h2>팝업 띄우기</h2><div class="row"><input id="pIn" class="grow" placeholder="팝업 내용"><button id="pSnd">띄우기</button></div></div>
+  </div>
+
+  <!-- 태블릿 -->
+  <div id="client" class="hide">
+    <p id="cIdle" class="mu">관리자가 기능을 켜면 여기에 표시됩니다.</p>
+    <div class="card hide" id="cQ"><h2 id="cPrompt"></h2><textarea id="cText" placeholder="답을 입력하세요"></textarea></div>
+    <div class="card hide" id="cC"><h2>관리자 카메라</h2><video id="cVid" autoplay playsinline muted></video><p id="cCs" class="mu">연결 중…</p></div>
+    <div class="card hide" id="cT"><h2>내 카메라 (관리자에게 전송)</h2><video id="tVid" autoplay playsinline muted></video><div class="row" style="margin-top:8px"><button id="tBtn">카메라 켜기</button><span id="tSt" class="mu"></span></div></div>
+    <div class="card hide" id="cH"><h2>채팅</h2><div class="chat" id="cLog"></div><div class="row"><input id="cIn" class="grow" placeholder="메시지"><button id="cSnd">전송</button></div></div>
+  </div>
+</div>
+<div id="popup" class="pop hide"><div><p id="pTx"></p><button id="pOk">확인</button></div></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const show = (id, on) => $(id).classList.toggle('hide', !on);
+const qs = new URLSearchParams(location.search);
+const role = qs.get('role') === 'admin' ? 'admin' : 'client';   // ★ 역할은 쿼리로 구분
+const key = qs.get('key') || '';
+let ws, myId, feats = { question: false, camera: false, tcam: false, chat: false }, prompt0 = '';
+const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const send = m => ws && ws.readyState === 1 && ws.send(JSON.stringify(m));
+
+$('title').textContent = role === 'admin' ? '🛠 관리자' : '📱 태블릿';
+show(role, true);
+
+function connect() {
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/?role=' + role + '&key=' + encodeURIComponent(key));
+  ws.onopen = () => { $('dot').classList.add('ok'); $('st').textContent = '연결됨'; };
+  ws.onclose = e => { $('dot').classList.remove('ok'); $('st').textContent = e.code === 4001 ? '관리자 키가 틀렸습니다' : '재연결 중…'; if (e.code !== 4001) setTimeout(connect, 1500); };
+  ws.onmessage = e => handle(JSON.parse(e.data));
+}
+setInterval(() => send({ t: 'ping' }), 25000);   // 유휴 끊김 방지
+
+function addChat(m) {
+  const l = $(role === 'admin' ? 'aLog' : 'cLog'), d = document.createElement('div');
+  d.className = 'm' + (m.from === myId ? ' me' : '');
+  const s = document.createElement('span'); s.textContent = (m.role === 'admin' ? '관리자: ' : '태블릿: ') + m.text;
+  d.appendChild(s); l.appendChild(d); l.scrollTop = l.scrollHeight;
+}
+function handle(m) {
+  if (m.t === 'hello') { myId = m.id; feats = m.state.feats; prompt0 = m.state.prompt; m.hist.forEach(addChat); render(); if (role === 'admin') $('qPrompt').value = prompt0 || $('qPrompt').value; }
+  else if (m.t === 'state') { feats = m.state.feats; prompt0 = m.state.prompt; render(); }
+  else if (m.t === 'chat') addChat(m);
+  else if (m.t === 'popup' && role === 'client') { $('pTx').textContent = m.text; show('popup', true); }
+  else if (m.t === 'typing' && role === 'admin') showTyping(m.from, m.text);
+  else if (m.t === 'left' && role === 'admin') { delete typed[m.id]; drawTyping(); dropT(m.id); if (pcs[m.id]) { pcs[m.id].close(); delete pcs[m.id]; } }
+  else if (m.t === 'clear') clearLocal(m.what);
+  else if (m.t === 'rtc') { const a = role === 'admin'; (m.ch === 'c2a' ? (a ? adminRtc2 : clientRtc2) : (a ? adminRtc : clientRtc))(m); }
+}
+$('pOk').onclick = () => show('popup', false);
+
+/* ================= 관리자 ================= */
+let stream = null; const pcs = {}, typed = {};
+function render() {
+  if (role === 'admin') {
+    document.querySelectorAll('.tg').forEach(b => b.classList.toggle('on', feats[b.dataset.f]));
+    show('aQ', feats.question); show('aC', feats.camera); show('aH', feats.chat);
+    show('aT', feats.tcam); if (!feats.tcam) closeAdminT();
+  } else {
+    show('cQ', feats.question); show('cC', feats.camera); show('cH', feats.chat);
+    show('cT', feats.tcam); if (!feats.tcam) stopClientCam();
+    show('cIdle', !(feats.question || feats.camera || feats.chat));
+    $('cPrompt').textContent = prompt0 || '질문';
+    if (!feats.camera) closeClientPc();
+  }
+}
+function pushState() { send({ t: 'state', feats, prompt: $('qPrompt').value }); }
+function showTyping(id, text) { typed[id] = text; drawTyping(); }
+function drawTyping() {
+  const box = $('qLive'); box.textContent = '';
+  const ids = Object.keys(typed);
+  if (!ids.length) { box.innerHTML = '<p class="mu">(입력 대기 중)</p>'; return; }
+  ids.forEach(id => {
+    const l = document.createElement('div'); l.className = 'mu'; l.textContent = '태블릿 #' + id;
+    const t = document.createElement('div'); t.className = 'live'; t.textContent = typed[id] || '(비어 있음)';
+    box.append(l, t);
+  });
+}
+async function camOn() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: false });
+    $('aVid').srcObject = stream; $('aCs').textContent = '카메라 켜짐';
+  } catch (e) { $('aCs').textContent = '카메라 오류: HTTPS 및 권한을 확인하세요'; feats.camera = false; render(); pushState(); }
+}
+function camOff() {
+  if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; $('aVid').srcObject = null;
+  Object.values(pcs).forEach(p => p.close()); for (const k in pcs) delete pcs[k];
+}
+async function adminRtc(m) {
+  if (m.k === 'want' && stream) {
+    const old = pcs[m.from];
+    if (old && ['connected', 'connecting', 'new'].includes(old.connectionState)) return;
+    old && old.close();
+    const pc = new RTCPeerConnection(ICE); pcs[m.from] = pc;
+    stream.getTracks().forEach(t => pc.addTrack(t, stream));
+    pc.onicecandidate = e => e.candidate && send({ t: 'rtc', ch: 'a2c', to: m.from, k: 'ice', c: e.candidate });
+    await pc.setLocalDescription(await pc.createOffer());
+    send({ t: 'rtc', ch: 'a2c', to: m.from, k: 'offer', sdp: pc.localDescription });
+  } else if (m.k === 'answer' && pcs[m.from]) { await pcs[m.from].setRemoteDescription(m.sdp); flushIce(pcs[m.from]); }
+  else if (m.k === 'ice' && pcs[m.from]) addIce(pcs[m.from], m.c);
+}
+if (role === 'admin') {
+  document.querySelectorAll('.tg').forEach(b => b.onclick = async () => {
+    const f = b.dataset.f; feats[f] = !feats[f]; render();
+    if (f === 'camera') feats.camera ? await camOn() : camOff();
+    pushState();
+  });
+  $('qSend').onclick = pushState;
+  $('dA').onclick = () => confirm('태블릿 입력 내용을 모두 삭제할까요?') && send({ t: 'clear', what: 'answers' });
+  $('dC').onclick = () => confirm('채팅 기록을 모두 삭제할까요?') && send({ t: 'clear', what: 'chat' });
+  $('dAll').onclick = () => confirm('입력 내용과 채팅을 모두 삭제할까요?') && send({ t: 'clear', what: 'all' });
+  setInterval(() => { if (feats.tcam) send({ t: 'rtc', ch: 'c2a', to: 'client', k: 'want' }); }, 3000);
+  const sendChat = () => { const v = $('aIn').value.trim(); if (v) { send({ t: 'chat', text: v }); $('aIn').value = ''; } };
+  $('aSnd').onclick = sendChat; $('aIn').onkeydown = e => e.key === 'Enter' && sendChat();
+  $('pSnd').onclick = () => { const v = $('pIn').value.trim(); if (v) { send({ t: 'popup', text: v }); $('pIn').value = ''; } };
+}
+
+/* ================= 태블릿 ================= */
+let cpc = null;
+function closeClientPc() { if (cpc) { cpc.close(); cpc = null; } $('cVid').srcObject = null; $('cCs').textContent = '연결 중…'; }
+async function clientRtc(m) {
+  if (m.k === 'offer') {
+    closeClientPc();
+    cpc = new RTCPeerConnection(ICE);
+    cpc.ontrack = e => { $('cVid').srcObject = e.streams[0]; $('cCs').textContent = '관리자 카메라 연결됨'; };
+    cpc.onicecandidate = e => e.candidate && send({ t: 'rtc', ch: 'a2c', to: m.from, k: 'ice', c: e.candidate });
+    await cpc.setRemoteDescription(m.sdp); flushIce(cpc);
+    await cpc.setLocalDescription(await cpc.createAnswer());
+    send({ t: 'rtc', ch: 'a2c', to: m.from, k: 'answer', sdp: cpc.localDescription });
+  } else if (m.k === 'ice' && cpc) addIce(cpc, m.c);
+}
+if (role === 'client') {
+  setInterval(() => {                                   // 카메라 켜져 있고 미연결이면 관리자에게 요청
+    if (feats.camera && !(cpc && cpc.connectionState === 'connected')) send({ t: 'rtc', ch: 'a2c', to: 'admin', k: 'want' });
+  }, 3000);
+  $('cText').oninput = () => send({ t: 'typing', text: $('cText').value.slice(0, 3000) });
+  const sendChat = () => { const v = $('cIn').value.trim(); if (v) { send({ t: 'chat', text: v }); $('cIn').value = ''; } };
+  $('cSnd').onclick = sendChat; $('cIn').onkeydown = e => e.key === 'Enter' && sendChat();
+}
+/* ===== 공용 헬퍼 ===== */
+function addIce(pc, c) { if (pc.remoteDescription) pc.addIceCandidate(c).catch(() => {}); else (pc._q = pc._q || []).push(c); }
+function flushIce(pc) { (pc._q || []).forEach(c => pc.addIceCandidate(c).catch(() => {})); pc._q = []; }
+function clearLocal(what) {
+  if (what === 'chat' || what === 'all') $(role === 'admin' ? 'aLog' : 'cLog').textContent = '';
+  if (what === 'answers' || what === 'all') {
+    if (role === 'admin') { for (const k in typed) delete typed[k]; drawTyping(); } else $('cText').value = '';
+  }
+}
+
+/* ===== 태블릿 카메라 → 관리자 (c2a) ===== */
+const pcs2 = {};
+function closeAdminT() { Object.values(pcs2).forEach(p => p.close()); for (const k in pcs2) delete pcs2[k]; $('tGrid').textContent = ''; $('aTs').classList.remove('hide'); }
+function dropT(id) { if (pcs2[id]) { pcs2[id].close(); delete pcs2[id]; } const v = document.getElementById('tv' + id); if (v) v.parentNode.remove(); }
+async function adminRtc2(m) {
+  if (m.k === 'offer') {
+    dropT(m.from);
+    const pc = new RTCPeerConnection(ICE); pcs2[m.from] = pc;
+    pc.ontrack = e => {
+      let v = document.getElementById('tv' + m.from);
+      if (!v) {
+        const w = document.createElement('div'), l = document.createElement('div');
+        w.style.marginBottom = '8px'; l.className = 'mu'; l.textContent = '태블릿 #' + m.from;
+        v = document.createElement('video'); v.id = 'tv' + m.from; v.autoplay = true; v.playsInline = true; v.muted = true;
+        w.append(l, v); $('tGrid').appendChild(w);
+      }
+      v.srcObject = e.streams[0]; $('aTs').classList.add('hide');
+    };
+    pc.onicecandidate = e => e.candidate && send({ t: 'rtc', ch: 'c2a', to: m.from, k: 'ice', c: e.candidate });
+    await pc.setRemoteDescription(m.sdp); flushIce(pc);
+    await pc.setLocalDescription(await pc.createAnswer());
+    send({ t: 'rtc', ch: 'c2a', to: m.from, k: 'answer', sdp: pc.localDescription });
+  } else if (m.k === 'ice' && pcs2[m.from]) addIce(pcs2[m.from], m.c);
+}
+let tstream = null, tpc = null;
+async function startClientCam() {
+  try {
+    tstream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 480, height: 360 }, audio: false });
+    $('tVid').srcObject = tstream; $('tSt').textContent = '카메라 켜짐 (관리자에게 전송)'; $('tBtn').classList.add('hide');
+  } catch (e) { $('tSt').textContent = '카메라 오류: HTTPS 및 권한을 확인하세요'; }
+}
+function stopClientCam() {
+  if (tstream) tstream.getTracks().forEach(t => t.stop()); tstream = null;
+  if (tpc) { tpc.close(); tpc = null; }
+  $('tVid').srcObject = null; $('tBtn').classList.remove('hide'); $('tSt').textContent = '';
+}
+async function clientRtc2(m) {
+  if (m.k === 'want' && tstream && !(tpc && ['connected', 'connecting', 'new'].includes(tpc.connectionState))) {
+    if (tpc) tpc.close();
+    const pc = tpc = new RTCPeerConnection(ICE);
+    tstream.getTracks().forEach(t => pc.addTrack(t, tstream));
+    pc.onicecandidate = e => e.candidate && send({ t: 'rtc', ch: 'c2a', to: m.from, k: 'ice', c: e.candidate });
+    await pc.setLocalDescription(await pc.createOffer());
+    send({ t: 'rtc', ch: 'c2a', to: m.from, k: 'offer', sdp: pc.localDescription });
+  } else if (m.k === 'answer' && tpc) { await tpc.setRemoteDescription(m.sdp); flushIce(tpc); }
+  else if (m.k === 'ice' && tpc) addIce(tpc, m.c);
+}
+if (role === 'client') $('tBtn').onclick = startClientCam;
+connect();
+</script>
+</body>
+</html>
